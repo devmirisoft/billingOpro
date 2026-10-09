@@ -21,6 +21,7 @@ export const dataApi = {
     invoices: () => api.get('/invoices'),
     createInvoice: (payload) => api.post('/invoices', payload),
     updateInvoicePayment: (id, payload) => api.patch(`/invoices/${id}/payment`, payload),
+    updateInvoiceEInvoice: (id, payload) => api.patch(`/invoices/${id}/e-invoice`, payload),
     invoicePdf: (id) => api.get(`/invoices/${id}/pdf`, { responseType: 'blob' }),
     deleteInvoice: (id) => api.delete(`/invoices/${id}`),
     customers: (search = '') => api.get('/customers', { params: search ? { search } : {} }),

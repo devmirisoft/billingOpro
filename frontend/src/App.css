@@ -12,14 +12,14 @@
 }
 .direct-product-form {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) 130px 100px 80px;
-  gap: 12px;
+  grid-template-columns: minmax(220px, 1fr) 150px 120px 120px 90px;
+  gap: 9px;
   align-items: end;
 }
 .direct-product-form label {
   position: relative;
   display: grid;
-  gap: 6px;
+  gap: 4px;
   color: var(--muted);
   font-size: 11px;
   font-weight: 700;
@@ -69,10 +69,16 @@
   background: transparent;
   padding: 10px;
   display: flex;
-  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
   color: var(--charcoal);
   font-size: 11px;
   text-align: left;
+}
+.product-suggestions button small {
+  flex: 1;
+  color: var(--muted);
+  text-align: center;
 }
 .product-suggestions button:hover {
   background: #f2e8ca;
@@ -103,18 +109,16 @@
   color: var(--muted);
 }
 .embedded-line-items {
-  margin-top: 18px;
-  border-top: 1px solid var(--border);
-  padding-top: 16px;
+  margin-top: 0;
 }
 .embedded-line-items .bill-items {
-  overflow-x: auto;
+  overflow-x: hidden;
 }
 .embedded-line-items .bill-item.header,
 .embedded-line-items .bill-item.direct-line {
-  grid-template-columns: minmax(260px, 1fr) 72px 110px 84px 130px 34px;
-  min-width: 760px;
-  gap: 22px;
+  grid-template-columns: minmax(220px, 1.5fr) minmax(82px, 0.7fr) minmax(50px, 0.45fr) minmax(72px, 0.6fr) minmax(84px, 0.65fr) minmax(58px, 0.5fr) minmax(96px, 0.8fr) 28px;
+  min-width: 0;
+  gap: 12px;
 }
 .bill-item.direct-line input[type="number"] {
   text-align: right;
@@ -932,8 +936,9 @@ th {
 }
 .bill-layout {
   display: grid;
-  grid-template-columns: 1fr 276px;
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) 316px;
+  gap: 12px;
+  align-items: start;
 }
 .product-picker {
   padding: 8px 10px;
@@ -954,7 +959,7 @@ th {
   grid-template-columns: minmax(190px, 1.8fr) 56px 76px 52px 88px 24px;
   align-items: center;
   gap: 11px;
-  padding: 12px;
+  padding: 8px 10px;
   border-top: 1px solid var(--border);
   font-size: 11px;
 }
@@ -978,7 +983,7 @@ th {
 .embedded-line-items .bill-item.direct-line select {
   width: 100%;
   min-width: 0;
-  padding: 9px 10px;
+  padding: 7px 9px;
   border-radius: 7px;
 }
 .embedded-line-items .bill-item.direct-line input[aria-label="Product name"] {
@@ -993,52 +998,65 @@ th {
 .bill-summary {
   align-self: start;
   position: sticky;
-  top: 24px;
+  top: 12px;
+  min-width: 0;
   color: #fffaf0;
   background: var(--charcoal);
   border-radius: 10px;
-  padding: 22px 19px;
+  padding: 14px 18px;
   display: grid;
-  gap: 14px;
+  gap: 9px;
 }
 .bill-page {
-  padding-top: 20px;
+  padding-top: 10px;
 }
 .bill-page .form-panel {
-  padding: 16px;
-  margin-bottom: 12px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+}
+.bill-page .add-product-panel {
+  max-width: 980px;
+}
+.bill-page .product-lines-panel {
+  padding: 12px;
 }
 .bill-page .section-head {
-  margin-bottom: 12px;
+  margin-bottom: 8px;
 }
 .bill-page .form-grid input,
 .bill-page .form-grid select,
 .bill-page .direct-product-form input,
 .bill-page .direct-product-form select {
-  padding-top: 8px;
-  padding-bottom: 8px;
+  min-height: 36px;
+  padding-top: 6px;
+  padding-bottom: 6px;
 }
 .bill-page .bill-items {
-  max-height: 310px;
-  overflow: auto;
+  max-height: 285px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 .bill-summary > div {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 14px;
   font-size: 11px;
   color: #bfc0b8;
 }
 .bill-summary > div strong {
+  min-width: 76px;
+  text-align: right;
   color: #fffaf0;
 }
 .bill-summary small {
   color: #8c9087;
 }
 .summary-total {
+  align-items: flex-end !important;
   border-top: 1px solid #474b43;
-  padding-top: 17px;
-  margin-top: 3px;
+  padding-top: 10px;
+  margin-top: 1px;
 }
 .summary-total span {
   color: var(--amber);
@@ -1047,8 +1065,11 @@ th {
 }
 .summary-total strong {
   color: var(--amber) !important;
-  font-size: 23px;
-  letter-spacing: -0.7px;
+  max-width: 155px;
+  overflow-wrap: anywhere;
+  font-size: 22px;
+  letter-spacing: 0;
+  line-height: 1.05;
 }
 .discount-field {
   color: #fffaf0;
@@ -1065,7 +1086,7 @@ th {
   padding: 5px;
 }
 .payment-select {
-  padding-top: 8px;
+  padding-top: 6px;
   color: #bfc0b8;
   border-top: 1px solid #474b43;
 }
@@ -1093,7 +1114,7 @@ th {
 .bill-summary .dark-button {
   background: var(--amber);
   color: #33270e;
-  margin-top: 6px;
+  margin-top: 3px;
 }
 .bill-summary .secondary-button {
   border-color: #555950;
@@ -1863,7 +1884,7 @@ th {
     min-height: 44px;
     font-size: 14px;
   }
-  .desktop-bill-layout {
+  .desktop-bill-flow {
     display: none;
   }
   .mobile-bill-flow {
@@ -1990,7 +2011,7 @@ th {
   }
   .mobile-line-fields {
     display: grid;
-    grid-template-columns: 0.75fr 1.2fr 0.9fr;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 8px;
     margin-top: 10px;
   }
