@@ -101,29 +101,30 @@ app.get('/api/invoices/:id/pdf', auth, async (req, res, next) => {
     const invoiceItems = Array.isArray(invoice.items) ? invoice.items : []
     const amountInWords = (value) => `INR ${numberWords(value)} Only`
     const formatPercent = (value) => `${Number(value || 0).toFixed(Number(value || 0) % 1 ? 2 : 0)}%`
+    const formatDiscountPercent = (value) => Number(value || 0) > 0 ? formatPercent(value) : ''
     const totalQuantity = () => invoiceItems.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
     const businessState = String(settings?.state || '').trim().toLowerCase()
     const customerState = String(invoice.customer?.state || addressParts(customerAddress).state || '').trim().toLowerCase()
     const interstateInvoice = Number(invoice.igstTotal || 0) > 0 || (businessState && customerState && businessState !== customerState)
     const tableHeaderHeight = 24
     const tableRowHeight = 27
-    const tableSummaryHeight = 48
+    const tableSummaryHeight = 24
     const finalSectionsHeight = 355
     const pageBottom = pageHeight - doc.page.margins.bottom
-    const rowsPerFirstPage = invoiceItems.length <= 5 ? 5 : Math.max(1, Math.floor((pageBottom - 300 - tableHeaderHeight - tableSummaryHeight - finalSectionsHeight - 20) / tableRowHeight))
-    const rowsPerNextPage = Math.max(1, Math.floor((pageBottom - 150 - tableHeaderHeight - tableSummaryHeight - finalSectionsHeight - 20) / tableRowHeight))
+    const rowsPerFirstPage = Math.max(1, Math.floor((pageBottom - 300 - tableHeaderHeight - tableSummaryHeight - 12) / tableRowHeight))
+    const rowsPerNextPage = Math.max(1, Math.floor((pageBottom - 150 - tableHeaderHeight - tableSummaryHeight - 12) / tableRowHeight))
+    const serializedRows = invoiceItems.map((item, index) => ({ item, serial: index + 1 }))
     const chunks = []
-    invoiceItems.forEach((item, index) => {
+    serializedRows.forEach((row) => {
         const limit = chunks.length ? rowsPerNextPage : rowsPerFirstPage
         if (!chunks.length || chunks[chunks.length - 1].length >= limit) chunks.push([])
-        chunks[chunks.length - 1].push({ item, serial: index + 1 })
+        chunks[chunks.length - 1].push(row)
     })
     if (!chunks.length) chunks.push([])
     const lastTableStart = chunks.length === 1 ? 300 : 150
     const lastTableBodyRows = chunks[chunks.length - 1].length
     const lastTableBottom = lastTableStart + tableHeaderHeight + lastTableBodyRows * tableRowHeight + tableSummaryHeight
-    const footerTopOnLastTablePage = lastTableBottom
-    const finalPageSeparate = footerTopOnLastTablePage + finalSectionsHeight > pageBottom
+    const finalPageSeparate = lastTableBottom + finalSectionsHeight > pageBottom
     const totalPages = chunks.length + (finalPageSeparate ? 1 : 0)
 
     const drawWaveChrome = (pageNumber) => {
@@ -185,22 +186,16 @@ app.get('/api/invoices/:id/pdf', auth, async (req, res, next) => {
             doc.text(currency(Number(item.price) * (1 + Number(item.gstRate || 0) / 100)), cols[5], y + 8, { width: widths[5], align: 'right' })
             doc.text(currency(item.price), cols[6], y + 8, { width: widths[6], align: 'right' })
             doc.text(item.unit || 'Nos', cols[7], y + 8, { width: widths[7], align: 'right' })
-            doc.text(formatPercent(item.discountPercent), cols[8], y + 8, { width: widths[8], align: 'right' })
+            doc.text(formatDiscountPercent(item.discountPercent), cols[8], y + 8, { width: widths[8], align: 'right' })
             doc.text(currency(item.taxableAmount), cols[9], y + 8, { width: widths[9], align: 'right' })
             y += tableRowHeight
         })
         if (includeSummary) {
+            doc.rect(30, y, 535, 24).fillAndStroke('#ffffff', lineColor)
             doc.font('Helvetica-Bold').fontSize(8).fillColor(ink)
-            doc.rect(30, y, 535, 24).fillAndStroke('#ffffff', lineColor)
-            doc.text('Total', 250, y + 8, { width: 55, align: 'right' })
             const invoiceUnit = invoiceItems.length && invoiceItems.every((item) => (item.unit || 'Nos') === (invoiceItems[0].unit || 'Nos')) ? invoiceItems[0].unit || 'Nos' : 'Units'
-            doc.fontSize(8.5).text(`${totalQuantity()} ${invoiceUnit}`, 312, y + 8, { width: 86, align: 'right' })
-            doc.text(`Rs.${currency(invoice.grandTotal)}`, 469, y + 8, { width: 84, align: 'right' })
-            y += 24
-            doc.rect(30, y, 535, 24).fillAndStroke('#ffffff', lineColor)
-            doc.fontSize(7.5).text('Amount Chargeable (in words):', 36, y + 5)
-            doc.font('Helvetica-Bold').text(amountInWords(invoice.grandTotal), 178, y + 5, { width: 275 })
-            doc.font('Helvetica-Bold').text('E. & O.E', 510, y + 5, { width: 48, align: 'right' })
+            doc.text(`Total Items: ${totalQuantity()} ${invoiceUnit}`, 62, y + 8, { width: 220, align: 'left' })
+            doc.text(`Total Amount: Rs.${currency(invoice.grandTotal)}`, 330, y + 8, { width: 220, align: 'right' })
             y += 24
         }
         return y

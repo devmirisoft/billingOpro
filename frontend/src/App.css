@@ -111,6 +111,32 @@
 .embedded-line-items {
   margin-top: 0;
 }
+.line-items-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.line-items-head h3 {
+  margin: 0;
+  font-size: 15px;
+}
+.line-items-head div {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.line-items-head span {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: #fffdf8;
+  color: var(--amber-dark);
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 800;
+}
 .embedded-line-items .bill-items {
   overflow-x: hidden;
 }
@@ -967,11 +993,15 @@ th {
   border-top: 0;
 }
 .bill-item.header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   color: var(--muted);
   background: #fcf7ed;
   text-transform: uppercase;
   font-weight: 800;
   font-size: 9px;
+  box-shadow: 0 1px 0 var(--border);
 }
 .bill-item input {
   width: 49px;
