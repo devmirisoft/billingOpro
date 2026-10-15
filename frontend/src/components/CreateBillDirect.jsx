@@ -118,8 +118,7 @@ export default function CreateBillDirect({ products, setProducts, setInvoices, n
     }
     const updateCustomer = (value) => {
         setCustomer(value)
-        setMatchedCustomer(null)
-        setCustomerLookupActive(true)
+        if (!matchedCustomer) setCustomerLookupActive(true)
         if ((mobile.trim() || value.trim()).length < 2) setCustomerSuggestions([])
     }
     const addLine = () => {
@@ -211,7 +210,10 @@ export default function CreateBillDirect({ products, setProducts, setInvoices, n
             }))
             const finalBillingAddress = formatAddress(billingAddress) || matchedCustomer?.address || ''
             const finalShippingAddress = shippingSameAsBilling ? finalBillingAddress : formatAddress(shippingAddress)
-            const invoiceCustomer = { name: matchedCustomer?.name || customer, mobile: mobileDigits(mobile), state: customerState || businessState, gstin: customerGstin.trim().toUpperCase(), address: finalBillingAddress, billingAddress: finalBillingAddress, shippingAddress: finalShippingAddress, email: matchedCustomer?.email || '' }
+            const normalizedMobile = mobileDigits(mobile)
+            const editedCustomer = { name: customer.trim(), mobile: normalizedMobile, state: customerState || businessState, gstin: customerGstin.trim().toUpperCase(), address: finalBillingAddress, email: matchedCustomer?.email || '' }
+            if (matchedCustomer?._id && mobileDigits(matchedCustomer.mobile) === normalizedMobile) await dataApi.updateCustomer(matchedCustomer._id, editedCustomer)
+            const invoiceCustomer = { ...editedCustomer, billingAddress: finalBillingAddress, shippingAddress: finalShippingAddress }
             const paidNow = paymentStatus === 'Paid' ? totals.total : Math.min(Number(amountReceived) || 0, totals.total)
             const invoiceResponse = await dataApi.createInvoice({ customer: invoiceCustomer, businessState, vehicleNumber: vehicleNumber.trim(), lrNumber: lrNumber.trim(), items: items.map((item, index) => ({ productId: savedProducts[index]._id, productName: item.name, productCode: item.code && !String(item.code).startsWith('AUTO-') ? item.code : '', hsnCode: item.hsnCode || '', quantity: Number(item.quantity) || 1, unit: item.unit, price: item.price, gstRate: item.gst, discountPercent: clampPercent(item.discountPercent) })), discountType: 'percentage', discountValue: clampPercent(discount), discountAmount: totals.discountAmount, paymentMethod, paymentStatus, amountPaid: paidNow, invoiceDate: new Date().toISOString() })
             const invoice = invoiceResponse.data

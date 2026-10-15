@@ -354,8 +354,8 @@ nav {
   min-width: 0;
 }
 .topbar {
-  min-height: 101px;
-  padding: 27px 42px 21px;
+  min-height: 76px;
+  padding: 17px 34px 14px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -452,7 +452,7 @@ nav {
   justify-content: space-between;
   align-items: flex-start;
   gap: 18px;
-  margin-bottom: 24px;
+  margin-bottom: 18px;
 }
 .bill-heading {
   margin-bottom: 12px;
@@ -755,6 +755,23 @@ nav {
   width: 100%;
   padding: 10px 0;
   font-size: 12px;
+}
+.sort-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.sort-control select {
+  min-width: 180px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--ivory);
+  color: var(--ink);
+  padding: 10px 30px 10px 11px;
+  font: inherit;
 }
 .table-panel {
   padding: 0;
@@ -1153,12 +1170,38 @@ th {
 .customer-table-panel table {
   min-width: 760px;
 }
+.customer-table-panel th:last-child,
+.customer-table-panel td:last-child {
+  width: 210px;
+  white-space: nowrap;
+}
+.customer-table-panel .row-actions {
+  justify-content: flex-start;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+.customer-table-panel .row-actions .secondary-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.customer-table-panel .row-actions .secondary-button:hover {
+  background: #f7efd9;
+  border-color: var(--amber);
+}
 .customer-row-list {
   display: none;
 }
 .customer-row {
   display: grid;
-  grid-template-columns: 1.3fr 0.8fr 0.9fr 0.8fr;
+  grid-template-columns: 1.3fr 0.8fr 0.9fr 0.8fr auto;
   gap: 12px;
   align-items: center;
   padding: 13px 16px;
@@ -1378,6 +1421,105 @@ th {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #fff;
+}
+.invoice-preview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.invoice-preview-actions a {
+  text-decoration: none;
+}
+.invoice-preview-hint {
+  font-size: 12px;
+  margin: 0 0 12px;
+}
+.ledger-customer-card {
+  padding: 16px 20px;
+}
+.customer-page,
+.customer-ledger-page {
+  padding-top: 8px;
+}
+.customer-page .page-heading,
+.customer-ledger-page .page-heading {
+  margin-bottom: 10px;
+}
+.customer-page .toolbar {
+  margin-bottom: 14px;
+}
+.ledger-metrics {
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.ledger-metrics .metric {
+  min-height: 96px;
+  padding: 14px 18px;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  grid-template-rows: 1fr 1fr;
+  column-gap: 14px;
+  align-items: center;
+}
+.ledger-metrics .metric-icon {
+  grid-row: 1 / span 2;
+  margin: 0;
+  width: 40px;
+  height: 40px;
+}
+.ledger-metrics .metric > span {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: end;
+}
+.ledger-metrics .metric strong {
+  grid-column: 2;
+  grid-row: 2;
+  margin: 0;
+  align-self: start;
+  font-size: 21px;
+}
+.ledger-metrics .metric small {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  margin: 0;
+  padding-left: 14px;
+  border-left: 1px solid var(--border);
+  white-space: nowrap;
+}
+@media (max-width: 767px) {
+  .ledger-metrics .metric {
+    min-height: 92px;
+    padding: 12px;
+    column-gap: 10px;
+  }
+  .ledger-metrics .metric small {
+    padding-left: 8px;
+    white-space: normal;
+  }
+}
+.ledger-customer-card h3 {
+  margin: 0 0 6px;
+}
+.ledger-customer-card p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+.ledger-empty {
+  padding: 48px 24px;
+  text-align: center;
+}
+.ledger-empty svg {
+  color: var(--muted);
+}
+.ledger-empty h3 {
+  margin: 12px 0 6px;
+}
+.ledger-empty p {
+  color: var(--muted);
+  margin: 0 0 18px;
 }
 .login-page {
   min-height: 100vh;
@@ -2213,6 +2355,10 @@ th {
   }
   .customer-row-list {
     display: none;
+  }
+  .customer-row .row-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
   }
   .page > .mobile-card-list {
     margin-top: 12px;

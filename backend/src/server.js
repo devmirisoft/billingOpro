@@ -5,6 +5,7 @@ const mongoose = require('mongoose')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 const PDFDocument = require('pdfkit')
+const renderPdf = require('./renderPdf')
 require('dotenv').config()
 
 const app = express()
@@ -37,7 +38,7 @@ const cleanEInvoiceFields = (body = {}) => ({
     signedQrDataUrl: logoPattern.test(String(body.signedQrDataUrl || '')) ? body.signedQrDataUrl : '',
     signedQrText: cleanInvoiceText(body.signedQrText, 4000)
 })
-const errorHandler = (error, req, res, next) => { console.error(error); if (error.code === 11000) return res.status(409).json({ message: 'An account with that email already exists' }); if (error.name === 'ValidationError') return res.status(400).json({ message: Object.values(error.errors).map((item) => item.message).join(', ') }); return res.status(error.status || 500).json({ message: 'Something went wrong. Please try again.' }) }
+const errorHandler = (error, req, res, next) => { console.error(error); if (res.headersSent) return next(error); if (error.code === 11000) return res.status(409).json({ message: 'An account with that email already exists' }); if (error.name === 'ValidationError') return res.status(400).json({ message: Object.values(error.errors).map((item) => item.message).join(', ') }); return res.status(error.status || 500).json({ message: 'Something went wrong. Please try again.' }) }
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok', service: 'billing-pro-api' }))
 app.post('/api/auth/register', async (req, res) => { const { name, email, password } = req.body; if (!name || !email || !password || password.length < 8) return res.status(400).json({ message: 'Name, email and an 8-character password are required' }); const user = await User.create({ name, email, password: await bcrypt.hash(password, 12) }); res.status(201).json({ id: user.id, name: user.name, email: user.email }) })
@@ -46,7 +47,22 @@ app.get('/api/products', auth, async (req, res) => res.json(await Product.find({
 app.post('/api/products', auth, async (req, res) => res.status(201).json(await Product.create(req.body)))
 app.put('/api/products/:id', auth, async (req, res) => res.json(await Product.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })))
 app.delete('/api/products/:id', auth, async (req, res) => { await Product.findByIdAndUpdate(req.params.id, { isActive: false }); res.status(204).end() })
-app.get('/api/customers', auth, async (req, res) => { const query = req.query.search ? { $or: [{ name: new RegExp(req.query.search, 'i') }, { mobile: new RegExp(req.query.search, 'i') }] } : {}; res.json(await Customer.find(query).sort({ name: 1 })) })
+app.get('/api/customers', auth, async (req, res) => {
+    const query = req.query.search ? { $or: [{ name: new RegExp(req.query.search, 'i') }, { mobile: new RegExp(req.query.search, 'i') }] } : {}
+    const customers = await Customer.find(query).lean()
+    const balances = await Invoice.aggregate([{ $group: { _id: '$customer.mobile', outstandingAmount: { $sum: { $ifNull: ['$balanceAmount', 0] } } } }])
+    const balanceByMobile = new Map(balances.map((item) => [mobileDigits(item._id), Number(item.outstandingAmount || 0)]))
+    const data = customers.map((customer) => ({ ...customer, outstandingAmount: balanceByMobile.get(mobileDigits(customer.mobile)) || 0 }))
+    const sort = ['lastBilled', 'name', 'outstanding'].includes(req.query.sort) ? req.query.sort : 'lastBilled'
+    data.sort((left, right) => {
+        if (sort === 'outstanding') return (right.outstandingAmount - left.outstandingAmount) || String(left.name || '').localeCompare(String(right.name || ''), undefined, { sensitivity: 'base' }) || String(left.mobile || '').localeCompare(String(right.mobile || ''))
+        if (sort === 'name') return String(left.name || '').localeCompare(String(right.name || ''), undefined, { sensitivity: 'base' }) || String(left.mobile || '').localeCompare(String(right.mobile || ''))
+        const leftDate = left.lastBilledAt ? new Date(left.lastBilledAt).getTime() : -Infinity
+        const rightDate = right.lastBilledAt ? new Date(right.lastBilledAt).getTime() : -Infinity
+        return (rightDate - leftDate) || String(left.name || '').localeCompare(String(right.name || ''), undefined, { sensitivity: 'base' }) || String(left.mobile || '').localeCompare(String(right.mobile || ''))
+    })
+    res.json(data)
+})
 app.post('/api/customers', auth, async (req, res) => { if (!hasValidMobile(req.body.mobile)) return res.status(400).json({ message: 'Mobile number must be exactly 10 digits' }); res.status(201).json(await Customer.create({ ...req.body, mobile: mobileDigits(req.body.mobile), gstin: String(req.body.gstin || '').trim().toUpperCase() })) })
 app.put('/api/customers/:id', auth, async (req, res) => { if (req.body.mobile && !hasValidMobile(req.body.mobile)) return res.status(400).json({ message: 'Mobile number must be exactly 10 digits' }); res.json(await Customer.findByIdAndUpdate(req.params.id, { ...req.body, mobile: req.body.mobile ? mobileDigits(req.body.mobile) : req.body.mobile }, { new: true, runValidators: true })) })
 app.delete('/api/customers/:id', auth, async (req, res) => { await Customer.findByIdAndDelete(req.params.id); res.status(204).end() })
@@ -65,7 +81,7 @@ app.post('/api/invoices', auth, async (req, res) => { const payload = { ...req.b
 app.patch('/api/invoices/:id/payment', auth, async (req, res) => { const invoice = await Invoice.findOne({ _id: req.params.id, createdBy: req.user.id }); if (!invoice) return res.status(404).json({ message: 'Invoice not found' }); const amountReceived = Math.max(Number(req.body.amountReceived) || 0, 0); if (amountReceived <= 0) return res.status(400).json({ message: 'Amount received must be greater than zero' }); const grandTotal = Number(invoice.grandTotal) || 0; const amountPaid = Math.min(round(Number(invoice.amountPaid || 0) + amountReceived), grandTotal); const balanceAmount = round(grandTotal - amountPaid); invoice.amountPaid = amountPaid; invoice.balanceAmount = balanceAmount; invoice.paymentStatus = amountPaid >= grandTotal ? 'Paid' : amountPaid > 0 ? 'Partially paid' : 'Unpaid'; await invoice.save(); res.json(invoice) })
 app.patch('/api/invoices/:id/e-invoice', auth, async (req, res) => { const invoice = await Invoice.findOne({ _id: req.params.id, createdBy: req.user.id }); if (!invoice) return res.status(404).json({ message: 'Invoice not found' }); Object.assign(invoice, cleanEInvoiceFields(req.body)); await invoice.save(); res.json(invoice) })
 app.delete('/api/invoices/:id', auth, async (req, res) => { const invoice = await Invoice.findOneAndDelete({ _id: req.params.id, createdBy: req.user.id }); if (!invoice) return res.status(404).json({ message: 'Invoice not found' }); res.status(204).end() })
-app.get('/api/invoices/:id/pdf', auth, async (req, res, next) => {
+app.get('/api/invoices/:id/pdf', auth, async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(400).json({ message: 'Invalid invoice ID' })
     const invoice = await Invoice.findById(req.params.id)
     if (!invoice) return res.status(404).json({ message: 'Invoice not found' })
@@ -338,45 +354,45 @@ app.get('/api/invoices/:id/pdf', auth, async (req, res, next) => {
         doc.text('This is a Computer Generated Invoice', 305, footerTop + 242, { width: 260, align: 'right' })
     }
 
+    const pdf = await renderPdf(doc, () => {
+        chunks.forEach((chunk, pageIndex) => {
+            if (pageIndex > 0) doc.addPage({ size: 'A4', margin: 32 })
+            drawWaveChrome(pageIndex + 1)
+            if (pageIndex === 0) drawDetails()
+            const y = drawTable(chunk, pageIndex === 0 ? 300 : 150, pageIndex === chunks.length - 1)
+            if (pageIndex === chunks.length - 1 && !finalPageSeparate) drawFinalSections(y)
+        })
+        if (finalPageSeparate) {
+            doc.addPage({ size: 'A4', margin: 32 })
+            drawWaveChrome(totalPages)
+            drawFinalSections(150, true)
+        }
+    })
     res.setHeader('Content-Type', 'application/pdf')
-    res.setHeader('Content-Disposition', `inline; filename=Invoice-${invoice.invoiceNumber}.pdf`)
-    doc.on('error', (error) => {
-        console.error('Could not generate invoice PDF:', error)
-        if (!res.headersSent) next(error)
-        else res.destroy(error)
-    })
-    doc.pipe(res)
-    chunks.forEach((chunk, pageIndex) => {
-        if (pageIndex > 0) doc.addPage({ size: 'A4', margin: 32 })
-        drawWaveChrome(pageIndex + 1)
-        if (pageIndex === 0) drawDetails()
-        const y = drawTable(chunk, pageIndex === 0 ? 300 : 150, pageIndex === chunks.length - 1)
-        if (pageIndex === chunks.length - 1 && !finalPageSeparate) drawFinalSections(y)
-    })
-    if (finalPageSeparate) {
-        doc.addPage({ size: 'A4', margin: 32 })
-        drawWaveChrome(totalPages)
-        drawFinalSections(150, true)
-    }
-    doc.end()
+    res.setHeader('Content-Disposition', `inline; filename="Invoice-${String(invoice.invoiceNumber).replace(/[^a-zA-Z0-9._-]/g, '_')}.pdf"`)
+    res.send(pdf)
 })
 app.get('/api/settings', auth, async (req, res) => res.json(await Settings.findOne({ userId: req.user.id }) || {}))
 app.put('/api/settings', auth, async (req, res) => { if (req.body.logoDataUrl && (!logoPattern.test(req.body.logoDataUrl) || Buffer.byteLength(req.body.logoDataUrl, 'utf8') > 1500000)) return res.status(400).json({ message: 'Logo must be a PNG, JPG, or WebP image under 1MB' }); if (req.body.qrDataUrl && (!logoPattern.test(req.body.qrDataUrl) || Buffer.byteLength(req.body.qrDataUrl, 'utf8') > 1500000)) return res.status(400).json({ message: 'Payment QR must be a PNG, JPG, or WebP image under 1MB' }); res.json(await Settings.findOneAndUpdate({ userId: req.user.id }, { ...req.body, userId: req.user.id }, { new: true, upsert: true, runValidators: true })) })
 app.use(errorHandler)
 
 const port = process.env.PORT || 5000
-mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/ledgerly')
-    .then(() => {
-        console.log('MongoDB connected successfully')
-        const server = app.listen(port, () => console.log(`Billing Pro API listening on ${port}`))
-        server.on('error', (error) => {
-            if (error.code === 'EADDRINUSE') {
-                console.error(`Port ${port} is already in use. Stop the existing server or set a different PORT in backend/.env.`)
-                process.exit(1)
-            }
+if (require.main === module) {
+    mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/ledgerly')
+        .then(() => {
+            console.log('MongoDB connected successfully')
+            const server = app.listen(port, () => console.log(`Billing Pro API listening on ${port}`))
+            server.on('error', (error) => {
+                if (error.code === 'EADDRINUSE') {
+                    console.error(`Port ${port} is already in use. Stop the existing server or set a different PORT in backend/.env.`)
+                    process.exit(1)
+                }
 
-            console.error('Server failed to start:', error.message)
-            process.exit(1)
+                console.error('Server failed to start:', error.message)
+                process.exit(1)
+            })
         })
-    })
-    .catch((error) => { console.error('MongoDB connection failed:', error.message); process.exit(1) })
+        .catch((error) => { console.error('MongoDB connection failed:', error.message); process.exit(1) })
+}
+
+module.exports = app
