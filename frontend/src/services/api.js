@@ -10,6 +10,7 @@ api.interceptors.request.use((config) => {
 })
 
 export const authApi = {
+    setupStatus: () => api.get('/auth/setup-status'),
     login: (payload) => api.post('/auth/login', payload),
     register: (payload) => api.post('/auth/register', payload),
 }
