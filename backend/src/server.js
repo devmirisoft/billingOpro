@@ -9,9 +9,41 @@ const renderPdf = require('./renderPdf')
 require('dotenv').config()
 
 const app = express()
+const mongoUri = process.env.MONGO_URI
+let mongoConnectionPromise
+
+const connectDatabase = async () => {
+    if (!mongoUri) throw Object.assign(new Error('MONGO_URI is not configured'), { status: 503, code: 'MONGO_URI_MISSING' })
+    if (mongoose.connection.readyState === 1) return mongoose.connection
+    if (!mongoConnectionPromise) {
+        mongoConnectionPromise = mongoose.connect(mongoUri, {
+            serverSelectionTimeoutMS: 10000,
+            maxPoolSize: 10,
+            bufferCommands: false
+        }).catch((error) => {
+            mongoConnectionPromise = undefined
+            throw error
+        })
+    }
+    await mongoConnectionPromise
+    return mongoose.connection
+}
+
 const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:5173,http://localhost:5174').split(',').map((origin) => origin.trim()).filter(Boolean)
 app.use(cors({ origin: (origin, callback) => { if (!origin || allowedOrigins.includes(origin)) return callback(null, true); return callback(new Error('Origin is not allowed')) } }))
 app.use(express.json({ limit: '5mb' }))
+// Vercel imports this module instead of running it as the main script. Connect
+// lazily per request and reuse the connection/promise across warm invocations.
+app.use('/api', async (req, res, next) => {
+    if (req.path === '/health') return next()
+    try {
+        await connectDatabase()
+        next()
+    } catch (error) {
+        console.error('MongoDB connection failed:', error.message)
+        res.status(503).json({ message: 'Database is temporarily unavailable. Please try again.' })
+    }
+})
 
 const userSchema = new mongoose.Schema({ name: String, email: { type: String, unique: true, lowercase: true }, password: String }, { timestamps: true })
 const productSchema = new mongoose.Schema({ name: { type: String, required: true }, productCode: { type: String, required: true, index: true }, sellingPrice: { type: Number, min: 0, required: true }, gstRate: { type: Number, min: 0, max: 100, required: true }, hsnCode: { type: String, required: true, trim: true, match: /^\d{1,8}$/ }, unit: String, description: String, priceIncludesGST: { type: Boolean, default: false }, isActive: { type: Boolean, default: true } }, { timestamps: true })
@@ -379,7 +411,7 @@ app.use(errorHandler)
 
 const port = process.env.PORT || 5000
 if (require.main === module) {
-    mongoose.connect(process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/ledgerly')
+    connectDatabase()
         .then(() => {
             console.log('MongoDB connected successfully')
             const server = app.listen(port, () => console.log(`Billing Pro API listening on ${port}`))
