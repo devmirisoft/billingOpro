@@ -21,7 +21,9 @@ export const dataApi = {
     updateProduct: (id, payload) => api.put(`/products/${id}`, payload),
     deleteProduct: (id) => api.delete(`/products/${id}`),
     invoices: (params = {}) => api.get('/invoices', { params }),
+    getInvoice: (id) => api.get(`/invoices/${id}`),
     createInvoice: (payload) => api.post('/invoices', payload),
+    updateInvoice: (id, payload) => api.put(`/invoices/${id}`, payload),
     updateInvoicePayment: (id, payload) => api.patch(`/invoices/${id}/payment`, payload),
     updateInvoiceEInvoice: (id, payload) => api.patch(`/invoices/${id}/e-invoice`, payload),
     invoicePdf: async (id, signal) => {
